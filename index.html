@@ -6,7 +6,7 @@
     <title>لوحة تحكم المخزون والمبيعات</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; font-weight: 600; }
         body { background: #f0f4f8; color: #1e293b; height: 100vh; display: flex; overflow: hidden; }
 
         /* شاشة الدخول */
@@ -64,7 +64,7 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px 10px; text-align: right; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;}
         th { background: #f8fafc; color: #0284c7; font-weight: 700; white-space: nowrap;}
-        td { color: #334155; }
+        td { color: #334155; font-weight: 600; }
         tr:hover td { background: #f0f9ff; }
 
         .qty-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
@@ -81,9 +81,9 @@
 
         /* أدوات البحث */
         .search-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;}
-        .search-bar input { flex: 1; padding: 12px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; color: #1e293b; outline: none; min-width: 200px; }
+        .search-bar input { flex: 1; padding: 12px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; color: #1e293b; outline: none; min-width: 200px; font-weight: 600;}
         
-        /* شريط ملخص البحث الجديد */
+        /* شريط ملخص البحث */
         .search-summary-bar { display: none; background: #e0f2fe; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 700; color: #0284c7; border: 1px solid #bae6fd; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
         .search-summary-bar span { display: flex; align-items: center; gap: 5px;}
 
@@ -98,7 +98,7 @@
         .modal-content { background: white; padding: 30px; border-radius: 20px; max-width: 600px; width: 100%; border: 1px solid #e2e8f0; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         .modal-content h2 { color: #0284c7; margin-bottom: 20px; font-weight: 900; }
         .modal-content label { display: block; margin-bottom: 5px; color: #475569; font-size: 0.9rem; font-weight: 600; margin-top: 10px; }
-        .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 12px; margin-bottom: 15px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; color: #1e293b; font-family: 'Cairo', sans-serif; outline: none; }
+        .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 12px; margin-bottom: 15px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; color: #1e293b; font-family: 'Cairo', sans-serif; outline: none; font-weight: 600;}
         .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
         .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Cairo', sans-serif; transition: 0.3s;}
         .save-btn { background: #10b981; color: white; }
@@ -194,7 +194,9 @@
                 <div class="stats-grid">
                     <div class="stat-card"><div class="icon">📦</div><div class="value" id="total-items">0</div><div class="label">إجمالي المنتجات</div></div>
                     <div class="stat-card"><div class="icon">💰</div><div class="value" id="total-value">0</div><div class="label">قيمة المخزون</div></div>
-                    <div class="stat-card"><div class="icon">⚠️</div><div class="value" id="low-stock">0</div><div class="label">قاربت على النفاد</div></div>
+                    <!-- تم تلوين قاربت على النفاد بالأحمر -->
+                    <div class="stat-card"><div class="icon">⚠️</div><div class="value" id="low-stock" style="color: #ef4444;">0</div><div class="label">قاربت على النفاد</div></div>
+                    <!-- صافي الربح بالأخضر -->
                     <div class="stat-card"><div class="icon">🤑</div><div class="value" id="net-profit" style="color: #10b981;">0</div><div class="label">صافي الربح</div></div>
                 </div>
 
@@ -232,10 +234,10 @@
                     <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج، رقم فاتورة، أو حالة (livre, annule, retour)..." oninput="loadSales()">
                 </div>
 
-                <!-- شريط نتائج البحث الجديد (عدد ومجموع) -->
+                <!-- شريط نتائج البحث (تم تعديله ليجمع الأرباح) -->
                 <div class="search-summary-bar" id="search-summary">
                     <span>🔎 عدد النتائج: <strong id="search-count">0</strong></span>
-                    <span>💰 مجموع المبالغ: <strong id="search-total">0</strong> د.م</span>
+                    <span>🤑 مجموع الأرباح: <strong id="search-profit">0</strong> د.م</span>
                 </div>
                 
                 <!-- فلاتر الشهور والسنوات -->
@@ -860,7 +862,6 @@
 
             let filtered = data;
             
-            // تفعيل البحث بالحالة (livre, annule, retour) أو اسم المنتج أو الفاتورة
             if (searchTerm !== '') {
                 filtered = data.filter(t => 
                     (t.inventory && t.inventory.product_name.toLowerCase().includes(searchTerm)) ||
@@ -868,13 +869,16 @@
                     (t.status && t.status.toLowerCase().includes(searchTerm))
                 );
                 
-                // إظهار شريط ملخص البحث (العدد والمجموع)
-                const searchTotal = filtered.reduce((sum, t) => sum + Number(t.total), 0);
+                // حساب مجموع أرباح النتائج المفلترة فقط (للعمليات الصالحة)
+                const searchProfit = filtered.reduce((sum, t) => {
+                    const isLivre = t.status === 'livre' || !t.status;
+                    return sum + (isLivre ? Number(t.profit) : 0);
+                }, 0);
+                
                 document.getElementById('search-summary').style.display = 'flex';
                 document.getElementById('search-count').textContent = filtered.length;
-                document.getElementById('search-total').textContent = searchTotal.toLocaleString();
+                document.getElementById('search-profit').textContent = searchProfit.toLocaleString();
             } else {
-                // إخفاء الشريط إذا كانت خانة البحث فارغة
                 document.getElementById('search-summary').style.display = 'none';
             }
 
@@ -888,7 +892,7 @@
                 return;
             }
 
-            let totalCount = filtered.length; // عدد المبيعات
+            let totalCount = filtered.length; 
             let totalRevenue = 0;
             let totalProfit = 0;
 
@@ -913,9 +917,8 @@
 
                 const profitDisplay = isLivre ? `<span style="color: #10b981; font-weight: bold;">+${t.profit} د.م</span>` : `<span style="color: #ef4444; text-decoration: line-through;">${t.profit} د.م</span>`;
 
-                // أزرار التعديل والحذف
                 const editBtn = t.product_id ? `<button class="action-btn edit-btn" onclick="editProductFromSale(${t.product_id})" title="تعديل المنتج">✏️</button>` : '';
-                const deleteBtn = `<button class="action-btn delete-btn" onclick="deleteTransaction(${t.id})" title="حذف العملية">🗑️</button>`;
+                const deleteBtn = `<button class="action-btn delete-btn" onclick="deleteTransaction(${t.id})" title="حذف وإرجاع للمخزون">🗑️</button>`;
 
                 return `
                     <tr>
@@ -963,13 +966,44 @@
         }
 
         async function deleteTransaction(id) {
-            if (!confirm('⚠️ هل أنت متأكد من حذف هذه العملية نهائياً؟\n(ملاحظة: لن يتم إرجاع الكمية للمخزون تلقائياً، إذا أردت إرجاع المنتج استخدم زر Retour).')) return;
+            if (!confirm('⚠️ هل أنت متأكد من حذف هذه العملية نهائياً؟\n(ملاحظة: سيتم إرجاع الكمية المباعة إلى المخزون تلقائياً).')) return;
             
-            const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
-            if (error) {
-                alert('❌ خطأ في الحذف: ' + error.message);
-            } else {
+            try {
+                const { data: trans, error: transError } = await supabaseClient
+                    .from('transactions')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (transError || !trans) throw new Error("لم يتم العثور على العملية");
+
+                if (trans.product_id) {
+                    const { data: product, error: prodError } = await supabaseClient
+                        .from('inventory')
+                        .select('quantity')
+                        .eq('id', trans.product_id)
+                        .single();
+
+                    if (!prodError && product) {
+                        const newQty = (product.quantity || 0) + trans.quantity;
+                        await supabaseClient
+                            .from('inventory')
+                            .update({ quantity: newQty })
+                            .eq('id', trans.product_id);
+                    }
+                }
+
+                const { error: deleteError } = await supabaseClient
+                    .from('transactions')
+                    .delete()
+                    .eq('id', id);
+
+                if (deleteError) throw deleteError;
+
+                alert('✅ تم حذف العملية وإرجاع الكمية للمخزون بنجاح');
                 refreshCurrentPage();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
             }
         }
 
