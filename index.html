@@ -228,7 +228,6 @@
                     <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج أو رقم فاتورة..." oninput="loadSales()">
                 </div>
                 
-                <!-- فلاتر الشهور والسنوات -->
                 <div class="filters-row">
                     <select id="month-filter" class="filter-select" onchange="filterSalesByDate()">
                         <option value="all">كل الأشهر</option>
@@ -247,7 +246,6 @@
                     </select>
                     
                     <select id="year-filter" class="filter-select" onchange="filterSalesByDate()">
-                        <option value="all">كل السنوات</option>
                         <!-- سيتم ملؤها بالسنوات تلقائياً -->
                     </select>
 
@@ -266,12 +264,7 @@
                     <div class="stat-card"><div class="icon">🤑</div><div class="value" id="total-sales-profit">0</div><div class="label">إجمالي الربح</div></div>
                 </div>
 
-                <!-- الجدول القابل للطباعة -->
                 <div class="table-container" id="printable-invoice">
-                    <div style="padding: 15px; text-align: center; display: none;" id="print-header">
-                        <h2>متجر تاجر عاطف - تقرير المبيعات</h2>
-                        <p id="print-date-range"></p>
-                    </div>
                     <table>
                         <thead>
                             <tr>
@@ -283,6 +276,7 @@
                                 <th>الإجمالي</th>
                                 <th>الربح</th>
                                 <th>الحالة</th>
+                                <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="sales-table"></tbody>
@@ -338,6 +332,34 @@
             <div class="modal-btns">
                 <button class="cancel-btn" onclick="closeModal('product-modal')">إلغاء</button>
                 <button class="save-btn" onclick="saveProduct()">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- تعديل فاتورة بيع -->
+    <div class="modal" id="edit-sale-modal">
+        <div class="modal-content">
+            <h2>✏️ تعديل الفاتورة</h2>
+            <input type="hidden" id="edit-sale-id">
+            <input type="hidden" id="edit-sale-product-id">
+            <input type="hidden" id="edit-sale-old-qty">
+            <input type="hidden" id="edit-sale-unit-buy-price">
+            
+            <label>رقم أو اسم الفاتورة:</label>
+            <input type="text" id="edit-sale-invoice">
+            
+            <label>المنتج:</label>
+            <input type="text" id="edit-sale-product-name" readonly style="background:#e2e8f0; color:#64748b; cursor:not-allowed;">
+            
+            <label>الكمية الجديدة:</label>
+            <input type="number" id="edit-sale-qty" min="1">
+            
+            <label>السعر الجديد (د.م):</label>
+            <input type="number" id="edit-sale-price" min="0" step="0.01">
+            
+            <div class="modal-btns">
+                <button class="cancel-btn" onclick="closeModal('edit-sale-modal')">إلغاء</button>
+                <button class="save-btn" onclick="updateSale()">تحديث الفاتورة</button>
             </div>
         </div>
     </div>
@@ -405,7 +427,8 @@
         let inventoryItems = [];
         let currentInvoice = [];
         let currentUser = null;
-        let currentSalesData = []; // لتخزين البيانات المعروضة حالياً للطباعة
+        let currentSalesData = []; 
+        let currentSalesFilter = 'today';
 
         // ========== الدخول ==========
         async function login() {
@@ -458,7 +481,7 @@
         async function loadData() {
             await loadInventory();
             await calculateStats();
-            populateYearFilter(); // تعبئة قائمة السنوات
+            populateYearFilter();
         }
 
         async function loadInventory() {
@@ -785,45 +808,42 @@
         }
 
         function setQuickFilter(filter, btn) {
+            currentSalesFilter = filter;
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
-            // تصفير القوائم المنسدلة عند اختيار فلتر سريع
             document.getElementById('month-filter').value = 'all';
             document.getElementById('year-filter').value = 'all';
-
-            loadSales(filter);
+            loadSales();
         }
 
         function filterSalesByDate() {
-            // إزالة التحديد النشط من الأزرار السريعة
+            currentSalesFilter = 'custom';
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            loadSales('custom');
+            loadSales();
         }
 
-        async function loadSales(filterType = 'today') {
+        async function loadSales() {
             const searchTerm = document.getElementById('search-product-input').value.toLowerCase().trim();
             const tbody = document.getElementById('sales-table');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">جاري التحميل...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">جاري التحميل...</td></tr>';
 
-            let query = supabaseClient.from('transactions').select('*, inventory(product_name)').eq('type', 'بيع').order('created_at', { ascending: false });
+            let query = supabaseClient.from('transactions').select('*, inventory(product_name, buy_price)').eq('type', 'بيع').order('created_at', { ascending: false });
 
             const now = new Date();
             const selectedMonth = document.getElementById('month-filter').value;
             const selectedYear = document.getElementById('year-filter').value;
 
-            if (filterType === 'today') {
+            if (currentSalesFilter === 'today') {
                 query = query.gte('created_at', new Date(now.setHours(0,0,0,0)).toISOString());
-            } else if (filterType === 'week') {
+            } else if (currentSalesFilter === 'week') {
                 const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
                 startOfWeek.setHours(0,0,0,0);
                 query = query.gte('created_at', startOfWeek.toISOString());
-            } else if (filterType === 'month') {
+            } else if (currentSalesFilter === 'month') {
                 query = query.gte('created_at', new Date(now.getFullYear(), now.getMonth(), 1).toISOString());
-            } else if (filterType === 'year') {
+            } else if (currentSalesFilter === 'year') {
                 query = query.gte('created_at', new Date(now.getFullYear(), 0, 1).toISOString());
-            } else if (filterType === 'custom') {
-                // فلترة مخصصة
+            } else if (currentSalesFilter === 'custom') {
                 if (selectedYear !== 'all') {
                     if (selectedMonth !== 'all') {
                         const startDate = new Date(selectedYear, selectedMonth - 1, 1);
@@ -835,7 +855,6 @@
                         query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
                     }
                 } else if (selectedMonth !== 'all') {
-                    // إذا اختار شهراً بدون سنة، نطبق على السنة الحالية
                     const startDate = new Date(now.getFullYear(), selectedMonth - 1, 1);
                     const endDate = new Date(now.getFullYear(), selectedMonth, 0, 23, 59, 59);
                     query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
@@ -845,7 +864,7 @@
             const { data, error } = await query;
 
             if (error) { 
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مسجلة بعد.</td></tr>'; 
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مسجلة بعد.</td></tr>'; 
                 return; 
             }
 
@@ -857,10 +876,10 @@
                 );
             }
 
-            currentSalesData = filtered; // حفظ البيانات للطباعة
+            currentSalesData = filtered; 
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مطابقة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مطابقة</td></tr>';
                 document.getElementById('total-sales-qty').textContent = '0';
                 document.getElementById('total-sales-revenue').textContent = '0';
                 document.getElementById('total-sales-profit').textContent = '0';
@@ -919,12 +938,119 @@
                                 </label>
                             </div>
                         </td>
+                        <td>
+                            <button class="action-btn edit-btn" onclick="openEditSaleModal(${t.id})" title="تعديل">✏️</button>
+                            <button class="action-btn delete-btn" onclick="deleteSale(${t.id}, ${t.product_id}, ${t.quantity})" title="حذف">🗑️</button>
+                        </td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // دالة تغيير حالة الفاتورة
+        // ========== تعديل وحذف المبيعات ==========
+        function openEditSaleModal(id) {
+            const t = currentSalesData.find(x => x.id === id);
+            if (!t) return;
+
+            document.getElementById('edit-sale-id').value = t.id;
+            document.getElementById('edit-sale-product-id').value = t.product_id;
+            document.getElementById('edit-sale-old-qty').value = t.quantity;
+            
+            // استخراج سعر الشراء الأصلي (لحساب الربح)
+            const unitBuy = t.price - (t.profit / t.quantity);
+            document.getElementById('edit-sale-unit-buy-price').value = unitBuy;
+
+            document.getElementById('edit-sale-invoice').value = t.invoice_name === 'بدون رقم' ? '' : t.invoice_name;
+            document.getElementById('edit-sale-product-name').value = t.inventory ? t.inventory.product_name : 'منتج محذوف';
+            document.getElementById('edit-sale-qty').value = t.quantity;
+            document.getElementById('edit-sale-price').value = t.price;
+
+            document.getElementById('edit-sale-modal').classList.add('active');
+        }
+
+        async function updateSale() {
+            const id = document.getElementById('edit-sale-id').value;
+            const productId = document.getElementById('edit-sale-product-id').value;
+            const oldQty = parseInt(document.getElementById('edit-sale-old-qty').value);
+            const unitBuy = parseFloat(document.getElementById('edit-sale-unit-buy-price').value);
+            
+            const newInvoice = document.getElementById('edit-sale-invoice').value.trim() || 'بدون رقم';
+            const newQty = parseInt(document.getElementById('edit-sale-qty').value);
+            const newPrice = parseFloat(document.getElementById('edit-sale-price').value);
+
+            if (isNaN(newQty) || newQty <= 0 || isNaN(newPrice) || newPrice <= 0) {
+                alert('⚠️ أدخل كمية وسعراً صحيحاً'); return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+            try {
+                // 1. تعديل كمية المخزون بناءً على الفارق
+                const qtyDiff = oldQty - newQty; // إذا كانت الكمية القديمة أكبر، نرجع الفارق للمخزون. إذا كانت الجديدة أكبر، نخصم الفارق.
+                
+                const { data: prodData, error: prodError } = await supabaseClient.from('inventory').select('quantity').eq('id', productId).single();
+                if (prodError) throw prodError;
+
+                const newStock = prodData.quantity + qtyDiff;
+                if (newStock < 0) {
+                    alert('⚠️ لا توجد كمية كافية في المخزون لإتمام هذا التعديل'); 
+                    btn.disabled = false; btn.textContent = 'تحديث الفاتورة';
+                    return;
+                }
+
+                await supabaseClient.from('inventory').update({ quantity: newStock }).eq('id', productId);
+
+                // 2. حساب الإجمالي والربح الجديد
+                const newTotal = newQty * newPrice;
+                const newProfit = (newPrice - unitBuy) * newQty;
+
+                // 3. تحديث جدول الحركات
+                const { error: transError } = await supabaseClient.from('transactions').update({
+                    invoice_name: newInvoice,
+                    quantity: newQty,
+                    price: newPrice,
+                    total: newTotal,
+                    profit: newProfit
+                }).eq('id', id);
+
+                if (transError) throw transError;
+
+                alert('✅ تم تحديث الفاتورة بنجاح!');
+                closeModal('edit-sale-modal');
+                await loadData();
+                await loadSales();
+
+            } catch (err) {
+                alert('❌ خطأ: ' + err.message);
+            } finally {
+                btn.disabled = false; btn.textContent = 'تحديث الفاتورة';
+            }
+        }
+
+        async function deleteSale(id, productId, qty) {
+            if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟ سيتم إرجاع الكمية إلى المخزون.')) return;
+
+            try {
+                // 1. إرجاع الكمية للمخزون
+                const { data: prodData, error: prodError } = await supabaseClient.from('inventory').select('quantity').eq('id', productId).single();
+                if (!prodError && prodData) {
+                    await supabaseClient.from('inventory').update({ quantity: prodData.quantity + qty }).eq('id', productId);
+                }
+
+                // 2. حذف الحركة
+                const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+                if (error) throw error;
+
+                alert('✅ تم حذف الفاتورة وإرجاع الكمية للمخزون.');
+                await loadData();
+                await loadSales();
+
+            } catch (err) {
+                alert('❌ خطأ: ' + err.message);
+            }
+        }
+
         async function updateTransactionStatus(transactionId, newStatus) {
             const { error } = await supabaseClient
                 .from('transactions')
@@ -935,12 +1061,7 @@
                 alert('❌ خطأ في تحديث الحالة: ' + error.message);
             } else {
                 await calculateStats();
-                // إعادة تحميل الجدول بالفلتر الحالي
-                if(document.getElementById('month-filter').value !== 'all' || document.getElementById('year-filter').value !== 'all') {
-                    loadSales('custom');
-                } else {
-                    loadSales('today'); // أو الفلتر النشط
-                }
+                await loadSales(); 
             }
         }
 
