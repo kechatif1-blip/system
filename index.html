@@ -80,9 +80,13 @@
         .delete-btn:hover { background: #ef4444; color: white; }
 
         /* أدوات البحث */
-        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;}
         .search-bar input { flex: 1; padding: 12px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; color: #1e293b; outline: none; min-width: 200px; }
         
+        /* شريط ملخص البحث الجديد */
+        .search-summary-bar { display: none; background: #e0f2fe; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 700; color: #0284c7; border: 1px solid #bae6fd; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+        .search-summary-bar span { display: flex; align-items: center; gap: 5px;}
+
         .filters-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .filter-select { padding: 8px 12px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Cairo', sans-serif; outline: none; cursor: pointer; color: #1e293b; font-weight: 600;}
         .filter-btn { background: white; color: #64748b; border: 1px solid #cbd5e1; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-family: 'Cairo', sans-serif; font-weight: 600; transition: 0.3s; font-size: 0.85rem;}
@@ -128,7 +132,7 @@
             body * { visibility: hidden; }
             #printable-invoice, #printable-invoice * { visibility: visible; }
             #printable-invoice { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
-            .modal-btns, .sidebar, .header-actions, .search-bar, .filter-btns, .filters-row { display: none !important; }
+            .modal-btns, .sidebar, .header-actions, .search-bar, .filter-btns, .filters-row, .search-summary-bar { display: none !important; }
         }
 
         @media (max-width: 768px) {
@@ -225,7 +229,13 @@
                 </div>
                 
                 <div class="search-bar">
-                    <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج أو رقم فاتورة..." oninput="loadSales()">
+                    <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج، رقم فاتورة، أو حالة (livre, annule, retour)..." oninput="loadSales()">
+                </div>
+
+                <!-- شريط نتائج البحث الجديد (عدد ومجموع) -->
+                <div class="search-summary-bar" id="search-summary">
+                    <span>🔎 عدد النتائج: <strong id="search-count">0</strong></span>
+                    <span>💰 مجموع المبالغ: <strong id="search-total">0</strong> د.م</span>
                 </div>
                 
                 <!-- فلاتر الشهور والسنوات -->
@@ -248,7 +258,6 @@
                     
                     <select id="year-filter" class="filter-select" onchange="filterSalesByDate()">
                         <option value="all">كل السنوات</option>
-                        <!-- سيتم ملؤها بالسنوات تلقائياً -->
                     </select>
 
                     <span style="margin: 0 10px; color: #cbd5e1;">|</span>
@@ -261,7 +270,7 @@
                 </div>
 
                 <div class="stats-grid" id="sales-stats">
-                    <div class="stat-card"><div class="icon">🛒</div><div class="value" id="total-sales-qty">0</div><div class="label">الكمية المباعة</div></div>
+                    <div class="stat-card"><div class="icon">🧾</div><div class="value" id="total-sales-count">0</div><div class="label">عدد المبيعات</div></div>
                     <div class="stat-card"><div class="icon">💰</div><div class="value" id="total-sales-revenue">0</div><div class="label">إجمالي المبيعات</div></div>
                     <div class="stat-card"><div class="icon">🤑</div><div class="value" id="total-sales-profit">0</div><div class="label">إجمالي الربح</div></div>
                 </div>
@@ -283,6 +292,7 @@
                                 <th>الإجمالي</th>
                                 <th>الربح</th>
                                 <th>الحالة</th>
+                                <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="sales-table"></tbody>
@@ -406,7 +416,7 @@
         let currentInvoice = [];
         let currentUser = null;
         let currentSalesData = []; 
-        let realtimeChannel = null; // متغير جديد للتحكم في قناة التحديث الفوري
+        let realtimeChannel = null;
 
         // ========== الدخول ==========
         async function login() {
@@ -423,7 +433,7 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-container').classList.add('active');
                 loadData();
-                setupRealtime(); // ✨ تشغيل التحديث الفوري بعد الدخول
+                setupRealtime(); 
             }
         }
 
@@ -441,7 +451,7 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-container').classList.add('active');
                 loadData();
-                setupRealtime(); // ✨ تشغيل التحديث الفوري عند الدخول التلقائي
+                setupRealtime(); 
             }
         };
 
@@ -569,7 +579,7 @@
 
             if (error) { alert('❌ خطأ: ' + error.message); return; }
             closeModal('product-modal');
-            await loadData(); // تحديث فوري محلي
+            await loadData();
         }
 
         async function deleteProduct(id) {
@@ -805,7 +815,7 @@
         async function loadSales(filterType = 'today') {
             const searchTerm = document.getElementById('search-product-input').value.toLowerCase().trim();
             const tbody = document.getElementById('sales-table');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">جاري التحميل...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">جاري التحميل...</td></tr>';
 
             let query = supabaseClient.from('transactions').select('*, inventory(product_name)').eq('type', 'بيع').order('created_at', { ascending: false });
 
@@ -844,42 +854,52 @@
             const { data, error } = await query;
 
             if (error) { 
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مسجلة بعد.</td></tr>'; 
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مسجلة بعد.</td></tr>'; 
                 return; 
             }
 
             let filtered = data;
+            
+            // تفعيل البحث بالحالة (livre, annule, retour) أو اسم المنتج أو الفاتورة
             if (searchTerm !== '') {
                 filtered = data.filter(t => 
                     (t.inventory && t.inventory.product_name.toLowerCase().includes(searchTerm)) ||
-                    (t.invoice_name && t.invoice_name.toLowerCase().includes(searchTerm))
+                    (t.invoice_name && t.invoice_name.toLowerCase().includes(searchTerm)) ||
+                    (t.status && t.status.toLowerCase().includes(searchTerm))
                 );
+                
+                // إظهار شريط ملخص البحث (العدد والمجموع)
+                const searchTotal = filtered.reduce((sum, t) => sum + Number(t.total), 0);
+                document.getElementById('search-summary').style.display = 'flex';
+                document.getElementById('search-count').textContent = filtered.length;
+                document.getElementById('search-total').textContent = searchTotal.toLocaleString();
+            } else {
+                // إخفاء الشريط إذا كانت خانة البحث فارغة
+                document.getElementById('search-summary').style.display = 'none';
             }
 
             currentSalesData = filtered; 
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مطابقة</td></tr>';
-                document.getElementById('total-sales-qty').textContent = '0';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات مطابقة</td></tr>';
+                document.getElementById('total-sales-count').textContent = '0';
                 document.getElementById('total-sales-revenue').textContent = '0';
                 document.getElementById('total-sales-profit').textContent = '0';
                 return;
             }
 
-            let totalQty = 0;
+            let totalCount = filtered.length; // عدد المبيعات
             let totalRevenue = 0;
             let totalProfit = 0;
 
             filtered.forEach(t => {
-                totalQty += t.quantity;
                 totalRevenue += Number(t.total);
-                
                 if (t.status === 'livre' || !t.status) {
                     totalProfit += Number(t.profit);
                 }
             });
 
-            document.getElementById('total-sales-qty').textContent = totalQty;
+            document.getElementById('total-sales-count').textContent = totalCount;
             document.getElementById('total-sales-revenue').textContent = totalRevenue.toLocaleString();
             document.getElementById('total-sales-profit').textContent = totalProfit.toLocaleString();
 
@@ -892,6 +912,10 @@
                 const isRetour = t.status === 'retour';
 
                 const profitDisplay = isLivre ? `<span style="color: #10b981; font-weight: bold;">+${t.profit} د.م</span>` : `<span style="color: #ef4444; text-decoration: line-through;">${t.profit} د.م</span>`;
+
+                // أزرار التعديل والحذف
+                const editBtn = t.product_id ? `<button class="action-btn edit-btn" onclick="editProductFromSale(${t.product_id})" title="تعديل المنتج">✏️</button>` : '';
+                const deleteBtn = `<button class="action-btn delete-btn" onclick="deleteTransaction(${t.id})" title="حذف العملية">🗑️</button>`;
 
                 return `
                     <tr>
@@ -918,9 +942,35 @@
                                 </label>
                             </div>
                         </td>
+                        <td style="white-space: nowrap;">
+                            ${editBtn}
+                            ${deleteBtn}
+                        </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        // دوال الإجراءات في جدول المبيعات
+        function editProductFromSale(productId) {
+            if (!productId) return alert('المنتج الأصلي غير موجود.');
+            const productExists = inventoryItems.find(i => i.id === productId);
+            if (productExists) {
+                editProduct(productId);
+            } else {
+                alert('هذا المنتج لم يعد موجوداً في المخزون الحالي.');
+            }
+        }
+
+        async function deleteTransaction(id) {
+            if (!confirm('⚠️ هل أنت متأكد من حذف هذه العملية نهائياً؟\n(ملاحظة: لن يتم إرجاع الكمية للمخزون تلقائياً، إذا أردت إرجاع المنتج استخدم زر Retour).')) return;
+            
+            const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+            if (error) {
+                alert('❌ خطأ في الحذف: ' + error.message);
+            } else {
+                refreshCurrentPage();
+            }
         }
 
         async function updateTransactionStatus(transactionId, newStatus) {
@@ -966,7 +1016,7 @@
                 `;
             });
 
-            const totalQty = document.getElementById('total-sales-qty').innerText;
+            const totalQty = document.getElementById('total-sales-count').innerText;
             const totalRev = document.getElementById('total-sales-revenue').innerText;
             const totalProf = document.getElementById('total-sales-profit').innerText;
 
@@ -1008,7 +1058,7 @@
                         </tbody>
                     </table>
                     <div class="totals">
-                        <span>إجمالي الكمية: ${totalQty}</span>
+                        <span>عدد المبيعات: ${totalQty}</span>
                         <span>إجمالي المبيعات: ${totalRev}</span>
                         <span>إجمالي الربح: ${totalProf}</span>
                     </div>
@@ -1123,7 +1173,6 @@
         // ✨ كود التحديث الفوري (Realtime)
         // ==========================================
         function setupRealtime() {
-            // إغلاق أي قناة سابقة لتجنب التكرار
             if (realtimeChannel) {
                 supabaseClient.removeChannel(realtimeChannel);
             }
@@ -1136,10 +1185,7 @@
         }
 
         function refreshCurrentPage() {
-            // تحديث الإحصائيات دائماً
             calculateStats();
-
-            // تحديث الصفحة المفتوحة حالياً فقط
             if (document.getElementById('page-inventory').classList.contains('active')) {
                 loadInventory();
             } else if (document.getElementById('page-sales').classList.contains('active')) {
