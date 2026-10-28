@@ -78,6 +78,8 @@
         .edit-btn:hover { background: #0ea5e9; color: white; }
         .delete-btn { background: #fee2e2; color: #ef4444; }
         .delete-btn:hover { background: #ef4444; color: white; }
+        .ship-btn { background: #fef3c7; color: #d97706; }
+        .ship-btn:hover { background: #f59e0b; color: white; }
 
         /* أدوات البحث */
         .search-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;}
@@ -194,9 +196,7 @@
                 <div class="stats-grid">
                     <div class="stat-card"><div class="icon">📦</div><div class="value" id="total-items">0</div><div class="label">إجمالي المنتجات</div></div>
                     <div class="stat-card"><div class="icon">💰</div><div class="value" id="total-value">0</div><div class="label">قيمة المخزون</div></div>
-                    <!-- تم تلوين قاربت على النفاد بالأحمر -->
                     <div class="stat-card"><div class="icon">⚠️</div><div class="value" id="low-stock" style="color: #ef4444;">0</div><div class="label">قاربت على النفاد</div></div>
-                    <!-- صافي الربح بالأخضر -->
                     <div class="stat-card"><div class="icon">🤑</div><div class="value" id="net-profit" style="color: #10b981;">0</div><div class="label">صافي الربح</div></div>
                 </div>
 
@@ -234,7 +234,6 @@
                     <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج، رقم فاتورة، أو حالة (livre, annule, retour)..." oninput="loadSales()">
                 </div>
 
-                <!-- شريط نتائج البحث (تم تعديله ليجمع الأرباح) -->
                 <div class="search-summary-bar" id="search-summary">
                     <span>🔎 عدد النتائج: <strong id="search-count">0</strong></span>
                     <span>🤑 مجموع الأرباح: <strong id="search-profit">0</strong> د.م</span>
@@ -404,6 +403,34 @@
             <div class="modal-btns">
                 <button class="cancel-btn" onclick="closeModal('expense-modal')">إلغاء</button>
                 <button class="save-btn" onclick="saveExpense()">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إرسال شركة التوصيل -->
+    <div class="modal" id="shipping-modal">
+        <div class="modal-content">
+            <h2>🚚 إرسال طلب لشركة Sh Express</h2>
+            <input type="hidden" id="ship-trans-id">
+            
+            <label>اسم العميل (الاسم الكامل):</label>
+            <input type="text" id="ship-fullname" placeholder="مثال: محمد أحمد">
+            
+            <label>رقم الهاتف:</label>
+            <input type="text" id="ship-phone" placeholder="0600000000">
+            
+            <label>المدينة:</label>
+            <input type="text" id="ship-city" placeholder="مثال: الدار البيضاء">
+            
+            <label>العنوان الكامل:</label>
+            <input type="text" id="ship-address" placeholder="الحي، الشارع، رقم المنزل">
+            
+            <label>تفاصيل المنتج:</label>
+            <input type="text" id="ship-product" disabled style="background:#e2e8f0; color:#64748b;">
+
+            <div class="modal-btns">
+                <button class="cancel-btn" onclick="closeModal('shipping-modal')">إلغاء</button>
+                <button class="save-btn" onclick="sendToShExpress()">إرسال للشركة</button>
             </div>
         </div>
     </div>
@@ -869,7 +896,6 @@
                     (t.status && t.status.toLowerCase().includes(searchTerm))
                 );
                 
-                // حساب مجموع أرباح النتائج المفلترة فقط (للعمليات الصالحة)
                 const searchProfit = filtered.reduce((sum, t) => {
                     const isLivre = t.status === 'livre' || !t.status;
                     return sum + (isLivre ? Number(t.profit) : 0);
@@ -919,6 +945,9 @@
 
                 const editBtn = t.product_id ? `<button class="action-btn edit-btn" onclick="editProductFromSale(${t.product_id})" title="تعديل المنتج">✏️</button>` : '';
                 const deleteBtn = `<button class="action-btn delete-btn" onclick="deleteTransaction(${t.id})" title="حذف وإرجاع للمخزون">🗑️</button>`;
+                
+                // زر الشاحنة لشركة التوصيل
+                const shipBtn = isLivre ? `<button class="action-btn ship-btn" onclick="openShippingModal(${t.id})" title="إرسال لشركة Sh Express">🚚</button>` : '';
 
                 return `
                     <tr>
@@ -946,6 +975,7 @@
                             </div>
                         </td>
                         <td style="white-space: nowrap;">
+                            ${shipBtn}
                             ${editBtn}
                             ${deleteBtn}
                         </td>
@@ -1025,6 +1055,79 @@
             }
         }
 
+        // ========== الربط مع Sh Express ==========
+        function openShippingModal(transId) {
+            const t = currentSalesData.find(x => x.id === transId);
+            if (!t) return;
+            
+            document.getElementById('ship-trans-id').value = t.id;
+            document.getElementById('ship-fullname').value = (t.invoice_name && t.invoice_name !== 'بدون رقم') ? t.invoice_name : '';
+            document.getElementById('ship-phone').value = '';
+            document.getElementById('ship-city').value = '';
+            document.getElementById('ship-address').value = '';
+            document.getElementById('ship-product').value = `${t.inventory ? t.inventory.product_name : 'منتج'} | الكمية: ${t.quantity} | السعر: ${t.total} د.م`;
+            
+            document.getElementById('shipping-modal').classList.add('active');
+        }
+
+        async function sendToShExpress() {
+            const transId = document.getElementById('ship-trans-id').value;
+            const t = currentSalesData.find(x => x.id == transId);
+            
+            const fullname = document.getElementById('ship-fullname').value.trim();
+            const phone = document.getElementById('ship-phone').value.trim();
+            const city = document.getElementById('ship-city').value.trim();
+            const address = document.getElementById('ship-address').value.trim();
+            
+            if (!fullname || !phone || !city || !address) {
+                alert('⚠️ يرجى ملء جميع الحقول المطلوبة');
+                return;
+            }
+
+            // ⚠️ ضع مفتاح الـ API الخاص بك هنا
+            const apiKey = 5ad4e37f0853cead08916ef9d39977ca8c71ec2946ddafa3ec97ec1e380812bd; 
+            const url = 'https://app.shexpress.ma/api.php?action=create&module=parcels';
+            
+            const btn = event.target;
+            btn.disabled = true; btn.textContent = 'جاري الإرسال...';
+
+            try {
+                const payload = {
+                    fullname: fullname,
+                    phone: phone,
+                    address: address,
+                    city: city,
+                    product: t.inventory ? t.inventory.product_name : 'Produit',
+                    qty: t.quantity,
+                    price: Number(t.total)
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.message || JSON.stringify(result));
+                }
+
+                alert('✅ تم إرسال الطلب بنجاح!\nرقم التتبع: ' + (result.data && result.data.tracking ? result.data.tracking : 'غير متوفر'));
+                closeModal('shipping-modal');
+                
+            } catch (err) {
+                alert('❌ فشل الاتصال بالشركة. قد يكون بسبب حماية المتصفح (CORS) أو خطأ في المفتاح.\nالتفاصيل: ' + err.message);
+            } finally {
+                btn.disabled = false; btn.textContent = 'إرسال للشركة';
+            }
+        }
+
+        // ========== الطباعة ==========
         function printFilteredTable() {
             if (currentSalesData.length === 0) {
                 alert('⚠️ لا توجد بيانات لطباعتها');
@@ -1176,7 +1279,7 @@
             const stats = {};
             trans.forEach(t => {
                 const empId = t.cashier_id || 'المدير';
-                if (!stats[empId]) stats[empId] = { count: 0, qty: 0, revenue: 0 };
+               if (!stats[empId]) stats[empId] = { count: 0, qty: 0, revenue: 0 };
                 stats[empId].count += 1;
                 stats[empId].qty += t.quantity;
                 stats[empId].revenue += Number(t.total);
