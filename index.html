@@ -78,8 +78,6 @@
         .edit-btn:hover { background: #0ea5e9; color: white; }
         .delete-btn { background: #fee2e2; color: #ef4444; }
         .delete-btn:hover { background: #ef4444; color: white; }
-        .ship-btn { background: #fef3c7; color: #d97706; }
-        .ship-btn:hover { background: #f59e0b; color: white; }
 
         /* أدوات البحث */
         .search-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;}
@@ -117,17 +115,23 @@
         .quick-add-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 15px; flex-wrap: wrap; }
         .quick-add-row > div { flex: 1; min-width: 100px; }
 
-        /* أزرار حالة الفاتورة */
-        .status-checkboxes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
-        .status-checkboxes label { display: flex; align-items: center; gap: 3px; font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 4px 8px; border-radius: 15px; border: 1px solid #cbd5e1; background: #f8fafc; transition: 0.3s; margin-top: 0; }
-        .status-checkboxes input[type="radio"] { display: none; }
-        .status-checkboxes input[type="radio"]:checked + span { color: white; }
-        .status-checkboxes label.livre { border-color: #10b981; color: #10b981; }
-        .status-checkboxes label.livre:has(input:checked) { background: #10b981; }
-        .status-checkboxes label.annule { border-color: #ef4444; color: #ef4444; }
-        .status-checkboxes label.annule:has(input:checked) { background: #ef4444; }
-        .status-checkboxes label.retour { border-color: #f59e0b; color: #f59e0b; }
-        .status-checkboxes label.retour:has(input:checked) { background: #f59e0b; }
+        /* تصميم جدول الحالات الجديد */
+        .status-table { border-collapse: collapse; width: 100%; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .status-table th { padding: 8px; text-align: center; font-size: 0.75rem; border-bottom: 2px solid #cbd5e1; }
+        
+        /* الألوان المطلوبة */
+        .status-table th.col-livre { background: #dcfce7; color: #166534; }
+        .status-table th.col-annule { background: #fee2e2; color: #991b1b; }
+        .status-table th.col-retour { background: #fee2e2; color: #991b1b; }
+        .status-table th.col-suivi { background: #ffedd5; color: #c2410c; }
+
+        .status-table td { padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        .status-table input[type="radio"] { width: 20px; height: 20px; cursor: pointer; }
+        
+        /* تلوين أزرار الاختيار */
+        .status-table input.radio-livre { accent-color: #10b981; }
+        .status-table input.radio-annule, .status-table input.radio-retour { accent-color: #ef4444; }
+        .status-table input.radio-suivi { accent-color: #f97316; }
 
         /* الطباعة */
         @media print {
@@ -231,7 +235,7 @@
                 </div>
                 
                 <div class="search-bar">
-                    <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج، رقم فاتورة، أو حالة (livre, annule, retour)..." oninput="loadSales()">
+                    <input type="text" id="search-product-input" placeholder="🔍 ابحث عن منتج، رقم فاتورة، أو حالة..." oninput="loadSales()">
                 </div>
 
                 <div class="search-summary-bar" id="search-summary">
@@ -292,7 +296,7 @@
                                 <th>الكمية</th>
                                 <th>الإجمالي</th>
                                 <th>الربح</th>
-                                <th>الحالة</th>
+                                <th style="min-width: 250px;">تحديد الحالة</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -388,7 +392,7 @@
                 <span id="invoice-total-price">0 د.م</span>
             </div>
             <div class="modal-btns">
-                <button class="cancel-btn" onclick="closeModal('pos-modal')">إلغاء</button>
+                <button class="cancel-btn" onclick="closeModal('pos-modal')">إغلاق النافذة</button>
                 <button class="save-btn" onclick="saveInvoice()">حفظ الفاتورة</button>
             </div>
         </div>
@@ -403,34 +407,6 @@
             <div class="modal-btns">
                 <button class="cancel-btn" onclick="closeModal('expense-modal')">إلغاء</button>
                 <button class="save-btn" onclick="saveExpense()">حفظ</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- نافذة إرسال شركة التوصيل -->
-    <div class="modal" id="shipping-modal">
-        <div class="modal-content">
-            <h2>🚚 إرسال طلب لشركة Sh Express</h2>
-            <input type="hidden" id="ship-trans-id">
-            
-            <label>اسم العميل (الاسم الكامل):</label>
-            <input type="text" id="ship-fullname" placeholder="مثال: محمد أحمد">
-            
-            <label>رقم الهاتف:</label>
-            <input type="text" id="ship-phone" placeholder="0600000000">
-            
-            <label>المدينة:</label>
-            <input type="text" id="ship-city" placeholder="مثال: الدار البيضاء">
-            
-            <label>العنوان الكامل:</label>
-            <input type="text" id="ship-address" placeholder="الحي، الشارع، رقم المنزل">
-            
-            <label>تفاصيل المنتج:</label>
-            <input type="text" id="ship-product" disabled style="background:#e2e8f0; color:#64748b;">
-
-            <div class="modal-btns">
-                <button class="cancel-btn" onclick="closeModal('shipping-modal')">إلغاء</button>
-                <button class="save-btn" onclick="sendToShExpress()">إرسال للشركة</button>
             </div>
         </div>
     </div>
@@ -802,8 +778,17 @@
                 }
 
                 alert('✅ تم حفظ الفاتورة بنجاح!');
-                closeModal('pos-modal');
-                await loadData();
+                
+                // ✨ تعديل: عدم إغلاق النافذة، بل تفريغها لتسجيل بيع جديد
+                currentInvoice = [];
+                document.getElementById('invoice-number').value = '';
+                renderInvoice();
+                await loadInventory(); // تحديث كميات المخزون في الخلفية
+                populatePOSSelect();   // تحديث قائمة المنتجات المتاحة
+                document.getElementById('pos-quantity').value = 1;
+                document.getElementById('pos-price').value = '';
+
+                // تحديث الجدول إذا كنا في صفحة المبيعات
                 if (document.getElementById('page-sales').classList.contains('active')) {
                     loadSales();
                 }
@@ -897,8 +882,8 @@
                 );
                 
                 const searchProfit = filtered.reduce((sum, t) => {
-                    const isLivre = t.status === 'livre' || !t.status;
-                    return sum + (isLivre ? Number(t.profit) : 0);
+                    const isValid = t.status === 'livre' || !t.status || t.status === 'suivi';
+                    return sum + (isValid ? Number(t.profit) : 0);
                 }, 0);
                 
                 document.getElementById('search-summary').style.display = 'flex';
@@ -924,7 +909,7 @@
 
             filtered.forEach(t => {
                 totalRevenue += Number(t.total);
-                if (t.status === 'livre' || !t.status) {
+                if (t.status === 'livre' || !t.status || t.status === 'suivi') {
                     totalProfit += Number(t.profit);
                 }
             });
@@ -940,14 +925,13 @@
                 const isLivre = t.status === 'livre' || !t.status;
                 const isAnnule = t.status === 'annule';
                 const isRetour = t.status === 'retour';
+                const isSuivi = t.status === 'suivi';
 
-                const profitDisplay = isLivre ? `<span style="color: #10b981; font-weight: bold;">+${t.profit} د.م</span>` : `<span style="color: #ef4444; text-decoration: line-through;">${t.profit} د.م</span>`;
+                const isValidForProfit = isLivre || isSuivi;
+                const profitDisplay = isValidForProfit ? `<span style="color: #10b981; font-weight: bold;">+${t.profit} د.م</span>` : `<span style="color: #ef4444; text-decoration: line-through;">${t.profit} د.م</span>`;
 
                 const editBtn = t.product_id ? `<button class="action-btn edit-btn" onclick="editProductFromSale(${t.product_id})" title="تعديل المنتج">✏️</button>` : '';
                 const deleteBtn = `<button class="action-btn delete-btn" onclick="deleteTransaction(${t.id})" title="حذف وإرجاع للمخزون">🗑️</button>`;
-                
-                // زر الشاحنة لشركة التوصيل
-                const shipBtn = isLivre ? `<button class="action-btn ship-btn" onclick="openShippingModal(${t.id})" title="إرسال لشركة Sh Express">🚚</button>` : '';
 
                 return `
                     <tr>
@@ -959,23 +943,26 @@
                         <td>${t.total} د.م</td>
                         <td>${profitDisplay}</td>
                         <td>
-                            <div class="status-checkboxes">
-                                <label class="livre">
-                                    <input type="radio" name="status_${t.id}" ${isLivre ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'livre')">
-                                    <span>Livre</span>
-                                </label>
-                                <label class="annule">
-                                    <input type="radio" name="status_${t.id}" ${isAnnule ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'annule')">
-                                    <span>Annulé</span>
-                                </label>
-                                <label class="retour">
-                                    <input type="radio" name="status_${t.id}" ${isRetour ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'retour')">
-                                    <span>Retour</span>
-                                </label>
-                            </div>
+                            <table class="status-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-livre">Livre</th>
+                                        <th class="col-annule">Annulé</th>
+                                        <th class="col-retour">Retour</th>
+                                        <th class="col-suivi">Suivi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="radio" class="radio-livre" name="status_${t.id}" ${isLivre ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'livre')"></td>
+                                        <td><input type="radio" class="radio-annule" name="status_${t.id}" ${isAnnule ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'annule')"></td>
+                                        <td><input type="radio" class="radio-retour" name="status_${t.id}" ${isRetour ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'retour')"></td>
+                                        <td><input type="radio" class="radio-suivi" name="status_${t.id}" ${isSuivi ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'suivi')"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </td>
                         <td style="white-space: nowrap;">
-                            ${shipBtn}
                             ${editBtn}
                             ${deleteBtn}
                         </td>
@@ -1055,79 +1042,6 @@
             }
         }
 
-        // ========== الربط مع Sh Express ==========
-        function openShippingModal(transId) {
-            const t = currentSalesData.find(x => x.id === transId);
-            if (!t) return;
-            
-            document.getElementById('ship-trans-id').value = t.id;
-            document.getElementById('ship-fullname').value = (t.invoice_name && t.invoice_name !== 'بدون رقم') ? t.invoice_name : '';
-            document.getElementById('ship-phone').value = '';
-            document.getElementById('ship-city').value = '';
-            document.getElementById('ship-address').value = '';
-            document.getElementById('ship-product').value = `${t.inventory ? t.inventory.product_name : 'منتج'} | الكمية: ${t.quantity} | السعر: ${t.total} د.م`;
-            
-            document.getElementById('shipping-modal').classList.add('active');
-        }
-
-        async function sendToShExpress() {
-            const transId = document.getElementById('ship-trans-id').value;
-            const t = currentSalesData.find(x => x.id == transId);
-            
-            const fullname = document.getElementById('ship-fullname').value.trim();
-            const phone = document.getElementById('ship-phone').value.trim();
-            const city = document.getElementById('ship-city').value.trim();
-            const address = document.getElementById('ship-address').value.trim();
-            
-            if (!fullname || !phone || !city || !address) {
-                alert('⚠️ يرجى ملء جميع الحقول المطلوبة');
-                return;
-            }
-
-            // ⚠️ ضع مفتاح الـ API الخاص بك هنا
-            const apiKey = 5ad4e37f0853cead08916ef9d39977ca8c71ec2946ddafa3ec97ec1e380812bd; 
-            const url = 'https://app.shexpress.ma/api.php?action=create&module=parcels';
-            
-            const btn = event.target;
-            btn.disabled = true; btn.textContent = 'جاري الإرسال...';
-
-            try {
-                const payload = {
-                    fullname: fullname,
-                    phone: phone,
-                    address: address,
-                    city: city,
-                    product: t.inventory ? t.inventory.product_name : 'Produit',
-                    qty: t.quantity,
-                    price: Number(t.total)
-                };
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.message || JSON.stringify(result));
-                }
-
-                alert('✅ تم إرسال الطلب بنجاح!\nرقم التتبع: ' + (result.data && result.data.tracking ? result.data.tracking : 'غير متوفر'));
-                closeModal('shipping-modal');
-                
-            } catch (err) {
-                alert('❌ فشل الاتصال بالشركة. قد يكون بسبب حماية المتصفح (CORS) أو خطأ في المفتاح.\nالتفاصيل: ' + err.message);
-            } finally {
-                btn.disabled = false; btn.textContent = 'إرسال للشركة';
-            }
-        }
-
-        // ========== الطباعة ==========
         function printFilteredTable() {
             if (currentSalesData.length === 0) {
                 alert('⚠️ لا توجد بيانات لطباعتها');
@@ -1139,6 +1053,8 @@
                 const date = new Date(t.created_at).toLocaleDateString('ar-MA', { hour: '2-digit', minute: '2-digit' });
                 const empDisplay = t.cashier_id ? 'موظف' : 'المدير';
                 const isLivre = t.status === 'livre' || !t.status;
+                const isSuivi = t.status === 'suivi';
+                const isValidForProfit = isLivre || isSuivi;
                 
                 tableRows += `
                     <tr>
@@ -1148,7 +1064,7 @@
                         <td>${empDisplay}</td>
                         <td>${t.quantity}</td>
                         <td>${t.total} د.م</td>
-                        <td>${isLivre ? t.profit + ' د.م' : '0 د.م'}</td>
+                        <td>${isValidForProfit ? t.profit + ' د.م' : '0 د.م'}</td>
                     </tr>
                 `;
             });
@@ -1269,7 +1185,7 @@
             const { data: trans, error } = await supabaseClient.from('transactions')
                 .select('cashier_id, quantity, total')
                 .eq('type', 'بيع')
-                .eq('status', 'livre');
+                .in('status', ['livre', 'suivi']); 
 
             if (error) { 
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد مبيعات بعد.</td></tr>'; 
@@ -1279,7 +1195,7 @@
             const stats = {};
             trans.forEach(t => {
                 const empId = t.cashier_id || 'المدير';
-               if (!stats[empId]) stats[empId] = { count: 0, qty: 0, revenue: 0 };
+                if (!stats[empId]) stats[empId] = { count: 0, qty: 0, revenue: 0 };
                 stats[empId].count += 1;
                 stats[empId].qty += t.quantity;
                 stats[empId].revenue += Number(t.total);
