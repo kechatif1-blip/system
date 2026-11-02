@@ -167,6 +167,26 @@ tr:hover td { background: #f0f9ff; }
 
         <div class="page-section" id="page-suppliers">
             <div class="header"><h1>🚚 فواتير الموردين</h1><button class="btn btn-primary" onclick="openSupplierModal()">➕ إضافة فاتورة شراء</button></div>
+            <div class="filters-row">
+    <select id="supplier-month-filter" class="filter-select" onchange="loadSupplierInvoices()">
+        <option value="all">كل الأشهر</option>
+        <option value="1">يناير (1)</option>
+        <option value="2">فبراير (2)</option>
+        <option value="3">مارس (3)</option>
+        <option value="4">أبريل (4)</option>
+        <option value="5">مايو (5)</option>
+        <option value="6">يونيو (6)</option>
+        <option value="7">يوليو (7)</option>
+        <option value="8">أغسطس (8)</option>
+        <option value="9">شتنبر (9)</option>
+        <option value="10">أكتوبر (10)</option>
+        <option value="11">نونبر (11)</option>
+        <option value="12">دجنبر (12)</option>
+    </select>
+    <select id="supplier-year-filter" class="filter-select" onchange="loadSupplierInvoices()">
+        <option value="all">كل السنوات</option>
+    </select>
+</div>
             <div class="table-container">
                 <table><thead><tr><th>التاريخ</th><th>المورد</th><th>المنتج</th><th>ثمن الشراء</th><th>العدد</th><th>المجموع</th><th>المدفوع</th><th>الباقي</th><th>الإجراءات</th></tr></thead><tbody id="suppliers-table"></tbody></table>
             </div>
@@ -174,6 +194,26 @@ tr:hover td { background: #f0f9ff; }
 
         <div class="page-section" id="page-product_stats">
             <div class="header"><h1>📉 تحليل أداء المنتجات</h1></div>
+            <div class="filters-row">
+    <select id="stats-month-filter" class="filter-select" onchange="loadProductStats()">
+        <option value="all">كل الأشهر</option>
+        <option value="1">يناير (1)</option>
+        <option value="2">فبراير (2)</option>
+        <option value="3">مارس (3)</option>
+        <option value="4">أبريل (4)</option>
+        <option value="5">مايو (5)</option>
+        <option value="6">يونيو (6)</option>
+        <option value="7">يوليو (7)</option>
+        <option value="8">أغسطس (8)</option>
+        <option value="9">شتنبر (9)</option>
+        <option value="10">أكتوبر (10)</option>
+        <option value="11">نونبر (11)</option>
+        <option value="12">دجنبر (12)</option>
+    </select>
+    <select id="stats-year-filter" class="filter-select" onchange="loadProductStats()">
+        <option value="all">كل السنوات</option>
+    </select>
+</div>
             <div class="table-container">
                 <table><thead><tr><th>المنتج</th><th>الكمية المباعة</th><th>إجمالي الربح</th><th>نسبة الربح</th><th>نسبة الإلغاء</th><th>نسبة الارتجاع</th></tr></thead><tbody id="product-stats-table"></tbody></table>
             </div>
@@ -399,6 +439,8 @@ function populateYearFilter() {
     let options = '<option value="all">كل السنوات</option>';
     for (let y = currentYear; y >= currentYear - 5; y--) options += `<option value="${y}">${y}</option>`;
     document.getElementById('year-filter').innerHTML = options;
+    document.getElementById('supplier-year-filter').innerHTML = options;
+    document.getElementById('stats-year-filter').innerHTML = options;
 }
 function setQuickFilter(filter, btn) {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -446,7 +488,8 @@ async function loadSales(filterType = 'today') {
     document.getElementById('total-sales-profit').textContent = totalProfit.toLocaleString();
     tbody.innerHTML = filtered.map(t => {
         const date = new Date(t.created_at).toLocaleDateString('ar-MA', { hour: '2-digit', minute: '2-digit' });
-        const empDisplay = t.cashier_id ? 'موظف' : 'المدير';
+       let empDisplay = 'المدير';
+
         const isLivre = t.status === 'livre' || !t.status, isAnnule = t.status === 'annule', isRetour = t.status === 'retour', isSuivi = t.status === 'suivi';
         const profitDisplay = (isLivre || isSuivi) ? `<span style="color: #10b981;">+${t.profit} د.م</span>` : `<span style="color: #ef4444; text-decoration: line-through;">${t.profit} د.م</span>`;
         return `<tr><td>${date}</td><td><strong>${t.invoice_name || '-'}</strong></td><td><strong>${t.inventory ? t.inventory.product_name : 'محذوف'}</strong></td><td>${empDisplay}</td><td>${t.quantity}</td><td>${t.total} د.م</td><td>${profitDisplay}</td><td><table class="status-table"><thead><tr><th class="col-livre">Livre</th><th class="col-annule">Annulé</th><th class="col-retour">Retour</th><th class="col-suivi">Suivi</th></tr></thead><tbody><tr><td><input type="radio" name="status_${t.id}" ${isLivre ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'livre')"></td><td><input type="radio" name="status_${t.id}" ${isAnnule ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'annule')"></td><td><input type="radio" name="status_${t.id}" ${isRetour ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'retour')"></td><td><input type="radio" name="status_${t.id}" ${isSuivi ? 'checked' : ''} onchange="updateTransactionStatus(${t.id}, 'suivi')"></td></tr></tbody></table></td><td>${t.product_id ? `<button class="action-btn edit-btn" onclick="editProductFromSale(${t.product_id})">✏️</button>` : ''}<button class="action-btn delete-btn" onclick="deleteTransaction(${t.id})">🗑️</button></td></tr>`;
@@ -500,7 +543,7 @@ async function loadEmployeeStats() {
     const { data: trans } = await supabaseClient.from('transactions').select('cashier_id, quantity, total').eq('type', 'بيع').in('status', ['livre', 'suivi']);
     const tbody = document.getElementById('emp-stats-table');
     if (!trans || trans.length === 0) return tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">لا توجد مبيعات</td></tr>';
-    const stats = {}; trans.forEach(t => { const id = t.cashier_id || 'المدير'; if (!stats[id]) stats[id] = { count: 0, qty: 0, total: 0 }; stats[id].count += 1; stats[id].qty += t.quantity; stats[id].total += Number(t.total); });
+    const stats = {}; trans.forEach(t => { const id ='المدير'; if (!stats[id]) stats[id] = { count: 0, qty: 0, total: 0 }; stats[id].count += 1; stats[id].qty += t.quantity; stats[id].total += Number(t.total); });
     tbody.innerHTML = Object.keys(stats).map(key => `<tr><td><strong>${key === 'المدير' ? '👑 المدير' : key}</strong></td><td>${stats[key].count}</td><td>${stats[key].qty}</td><td>${stats[key].total.toLocaleString()} د.م</td></tr>`).join('');
 }
 function openSupplierModal() {
@@ -531,44 +574,114 @@ async function saveSupplierInvoice() {
 async function loadSupplierInvoices() {
     const tbody = document.getElementById('suppliers-table');
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">جاري التحميل...</td></tr>';
-    const { data } = await supabaseClient.from('supplier_invoices').select('*').order('created_at', { ascending: false });
-    if (!data || data.length === 0) return tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">لا توجد فواتير</td></tr>';
-    tbody.innerHTML = data.map(inv => `<tr><td>${new Date(inv.created_at).toLocaleDateString('ar-MA')}</td><td><strong>${inv.supplier_name}</strong></td><td>${inv.product_name}</td><td>${inv.buy_price} د.م</td><td>${inv.quantity}</td><td style="font-weight:bold;">${inv.total} د.م</td><td style="color:#10b981; font-weight:bold;">${inv.paid} د.م</td><td style="color:#ef4444; font-weight:bold;">${inv.remaining} د.م</td><td><button class="action-btn delete-btn" onclick="deleteSupplierInvoice(${inv.id})">🗑️</button></td></tr>`).join('');
+    
+    let query = supabaseClient.from('supplier_invoices').select('*').order('created_at', { ascending: false });
+    
+    const monthFilter = document.getElementById('supplier-month-filter').value;
+    const yearFilter = document.getElementById('supplier-year-filter').value;
+    const now = new Date();
+
+    if (yearFilter !== 'all') {
+        if (monthFilter !== 'all') {
+            const startDate = new Date(yearFilter, monthFilter - 1, 1);
+            const endDate = new Date(yearFilter, monthFilter, 0, 23, 59, 59);
+            query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        } else {
+            const startDate = new Date(yearFilter, 0, 1);
+            const endDate = new Date(yearFilter, 11, 31, 23, 59, 59);
+            query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        }
+    } else if (monthFilter !== 'all') {
+        const startDate = new Date(now.getFullYear(), monthFilter - 1, 1);
+        const endDate = new Date(now.getFullYear(), monthFilter, 0, 23, 59, 59);
+        query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+    }
+
+    const { data } = await query;
+    
+    if (!data || data.length === 0) {
+        return tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">لا توجد فواتير في هذه الفترة</td></tr>';
+    }
+
+    tbody.innerHTML = data.map(inv => `<tr>
+        <td>${new Date(inv.created_at).toLocaleDateString('ar-MA')}</td>
+        <td><strong>${inv.supplier_name}</strong></td>
+        <td>${inv.product_name}</td>
+        <td>${inv.buy_price} د.م</td>
+        <td>${inv.quantity}</td>
+        <td style="font-weight:bold;">${inv.total} د.م</td>
+        <td style="color:#10b981; font-weight:bold;">${inv.paid} د.م</td>
+        <td style="color:#ef4444; font-weight:bold;">${inv.remaining} د.م</td>
+        <td><button class="action-btn delete-btn" onclick="deleteSupplierInvoice(${inv.id})">🗑️</button></td>
+    </tr>`).join('');
 }
 async function deleteSupplierInvoice(id) { if (!confirm('حذف؟')) return; await supabaseClient.from('supplier_invoices').delete().eq('id', id); loadSupplierInvoices(); }
 async function loadProductStats() {
     const tbody = document.getElementById('product-stats-table');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">جاري التحليل...</td></tr>';
-    const { data: trans } = await supabaseClient.from('transactions').select('*, inventory(product_name, buy_price)').eq('type', 'بيع');
-    if (!trans) return tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد بيانات</td></tr>';
+    
+    let query = supabaseClient.from('transactions').select('*, inventory(product_name, buy_price)').eq('type', 'بيع');
+    
+    const monthFilter = document.getElementById('stats-month-filter').value;
+    const yearFilter = document.getElementById('stats-year-filter').value;
+    const now = new Date();
+
+    if (yearFilter !== 'all') {
+        if (monthFilter !== 'all') {
+            const startDate = new Date(yearFilter, monthFilter - 1, 1);
+            const endDate = new Date(yearFilter, monthFilter, 0, 23, 59, 59);
+            query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        } else {
+            const startDate = new Date(yearFilter, 0, 1);
+            const endDate = new Date(yearFilter, 11, 31, 23, 59, 59);
+            query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        }
+    } else if (monthFilter !== 'all') {
+        const startDate = new Date(now.getFullYear(), monthFilter - 1, 1);
+        const endDate = new Date(now.getFullYear(), monthFilter, 0, 23, 59, 59);
+        query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+    }
+
+    const { data: trans, error } = await query;
+    if (error || !trans) return tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد بيانات في هذه الفترة</td></tr>';
+    
     const stats = {};
     trans.forEach(t => {
         const name = t.inventory ? t.inventory.product_name : 'محذوف';
         if (!stats[name]) stats[name] = { totalSales: 0, revenue: 0, profit: 0, annule: 0, retour: 0, validCount: 0 };
         stats[name].totalSales++;
-        if (t.status === 'livre' || !t.status || t.status === 'suivi') { stats[name].revenue += Number(t.total); stats[name].profit += Number(t.profit); stats[name].validCount++; }
+        if (t.status === 'livre' || !t.status || t.status === 'suivi') { 
+            stats[name].revenue += Number(t.total); 
+            stats[name].profit += Number(t.profit); 
+            stats[name].validCount++; 
+        }
         if (t.status === 'annule') stats[name].annule++;
         if (t.status === 'retour') stats[name].retour++;
     });
+
     const sortedNames = Object.keys(stats).sort((a, b) => stats[b].validCount - stats[a].validCount);
+    
     tbody.innerHTML = sortedNames.map(name => {
         const s = stats[name];
         const profitRatio = s.revenue > 0 ? ((s.profit / s.revenue) * 100).toFixed(1) : 0;
         const annuleRatio = ((s.annule / s.totalSales) * 100).toFixed(1);
         const retourRatio = ((s.retour / s.totalSales) * 100).toFixed(1);
-        return `<tr><td><strong>${name}</strong></td><td>${s.validCount}</td><td style="color: #10b981; font-weight: bold;">${s.profit} د.م</td><td>${profitRatio}%</td><td style="color: #ef4444;">${annuleRatio}% (${s.annule})</td><td style="color: #f59e0b;">${retourRatio}% (${s.retour})</td></tr>`;
+        return `<tr>
+            <td><strong>${name}</strong></td>
+            <td>${s.validCount}</td>
+            <td style="color: #10b981; font-weight: bold;">${s.profit} د.م</td>
+            <td>${profitRatio}%</td>
+            <td style="color: #ef4444;">${annuleRatio}% (${s.annule})</td>
+            <td style="color: #f59e0b;">${retourRatio}% (${s.retour})</td>
+        </tr>`;
     }).join('');
 
-    // كود المبيان
     const ctx = document.getElementById('salesChart');
     if (!ctx) return;
     if (window.myChart) window.myChart.destroy();
     window.myChart = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: sortedNames,
-            datasets: [{ label: 'الكمية المباعة', data: sortedNames.map(name => stats[name].validCount), backgroundColor: '#0ea5e9', borderRadius: 5 }]
-        },
+        data: { labels: sortedNames, datasets: [{ label: 'الكمية المباعة', data: sortedNames.map(name => stats[name].validCount), backgroundColor: '#0ea5e9', borderRadius: 5 }] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
     });
 }
