@@ -240,8 +240,9 @@ tr:hover td { background: #f0f9ff; }
     <h2>🛒 عملية بيع جديدة</h2>
     <label>رقم الفاتورة:</label><input type="text" id="invoice-number" placeholder="اختياري">
     <div class="quick-add-row">
-        <div style="flex: 3;"><label>المنتج:</label><select id="pos-product-select"></select></div>
-        <div style="flex: 1;"><label>الكمية:</label><input type="number" id="pos-quantity" value="1" min="1"></div>
+        <input list="products-list" id="pos-product-input" class="filter-select" placeholder="-- ابحث عن منتج --" style="width: 100%;" oninput="onProductInput()">
+<datalist id="products-list"></datalist>
+<input type="hidden" id="pos-product-select">
         <div style="flex: 1;"><label>السعر:</label><input type="number" id="pos-price"></div>
         <button class="btn btn-primary" onclick="addToInvoice()" style="height: 42px;">➕</button>
     </div>
@@ -372,31 +373,69 @@ async function saveProduct() {
 }
 async function deleteProduct(id) { if (!confirm('حذف المنتج نهائياً؟')) return; await supabaseClient.from('inventory').delete().eq('id', id); await loadData(); }
 function populatePOSSelect() {
-    const select = document.getElementById('pos-product-select');
-    select.innerHTML = '<option value="">-- اختر منتجاً --</option>' + inventoryItems.filter(i => i.quantity > 0).map(item => `<option value="${item.id}">${item.product_name} (متوفر: ${item.quantity})</option>`).join('');
+    const list = document.getElementById('products-list');
+    list.innerHTML = inventoryItems.filter(i => i.quantity > 0).map(item => 
+        `<option value="${item.product_name}" data-id="${item.id}" data-price="${item.sell_price}" data-qty="${item.quantity}">`
+    ).join('');
+    
+    document.getElementById('pos-product-input').value = '';
+    document.getElementById('pos-product-select').value = '';
+    document.getElementById('pos-price').value = '';
+}
+
+function onProductInput() {
+    const inputVal = document.getElementById('pos-product-input').value;
+    const options = document.getElementById('products-list').options;
+    let found = false;
+
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].value === inputVal) {
+            document.getElementById('pos-product-select').value = options[i].getAttribute('data-id');
+            document.getElementById('pos-price').value = options[i].getAttribute('data-price');
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        document.getElementById('pos-product-select').value = '';
+        document.getElementById('pos-price').value = '';
+    }
 }
 function openPOSModal() {
-    currentInvoice = []; document.getElementById('invoice-number').value = '';
-    renderInvoice(); populatePOSSelect();
-    document.getElementById('pos-quantity').value = 1; document.getElementById('pos-price').value = '';
+    currentInvoice = [];
+    document.getElementById('invoice-number').value = '';
+    renderInvoice(); 
+    populatePOSSelect();
     document.getElementById('pos-modal').classList.add('active');
 }
-document.getElementById('pos-product-select').addEventListener('change', function() {
-    const item = inventoryItems.find(i => i.id == this.value);
-    if (item) document.getElementById('pos-price').value = item.sell_price;
-});
 function addToInvoice() {
     const productId = document.getElementById('pos-product-select').value;
-    const quantity = parseInt(document.getElementById('pos-quantity').value);
+    // بما أننا نستخدم البحث المدمج، الكمية الافتراضية هي 1
+    const quantity = 1; 
     const price = parseFloat(document.getElementById('pos-price').value);
-    if (!productId || isNaN(quantity) || quantity <= 0 || isNaN(price) || price <= 0) return alert('⚠️ بيانات غير صحيحة');
+
+    if (!productId || isNaN(price) || price <= 0) {
+        return alert('⚠️ يرجى اختيار منتج صحيح من القائمة');
+    }
+
     const item = inventoryItems.find(i => i.id == productId);
+    if (!item) return;
+
+    // التحقق من الكمية المتوفرة
     const existingInInvoice = currentInvoice.filter(i => i.id == productId).reduce((sum, i) => sum + i.qty, 0);
-    if (quantity + existingInInvoice > item.quantity) return alert(`⚠️ الكمية أكبر من المتوفرة (${item.quantity})`);
+    if (quantity + existingInInvoice > item.quantity) {
+        return alert(`⚠️ الكمية أكبر من المتوفرة (${item.quantity})`);
+    }
+
     const existing = currentInvoice.find(i => i.id == productId);
-    if (existing) { existing.qty += quantity; existing.price = price; } 
-    else { currentInvoice.push({ id: item.id, name: item.product_name, qty: quantity, price: price, buy_price: item.buy_price }); }
-    renderInvoice(); document.getElementById('pos-quantity').value = 1;
+    if (existing) { 
+        existing.qty += quantity; 
+        existing.price = price; 
+    } else { 
+        currentInvoice.push({ id: item.id, name: item.product_name, qty: quantity, price: price, buy_price: item.buy_price }); 
+    }
+    
+    renderInvoice(); 
 }
 function removeFromInvoice(index) { currentInvoice.splice(index, 1); renderInvoice(); }
 function updateInvoiceItem(index, field, value) {
@@ -427,7 +466,7 @@ async function saveInvoice(event) {
         for (const item of currentInvoice) {
             const originalItem = inventoryItems.find(i => i.id == item.id);
             await supabaseClient.from('inventory').update({ quantity: originalItem.quantity - item.qty }).eq('id', item.id);
-            await supabaseClient.from('transactions').insert([{ product_id: item.id, type: 'بيع', quantity: item.qty, price: item.price, total: item.qty * item.price, profit: (item.price - item.buy_price) * item.qty, cashier_id: currentUser ? currentUser.id : null, invoice_name: invoiceNumber, status: 'livre' }]);
+            await supabaseClient.from('transactions').insert([{ product_id: item.id, type: 'بيع', quantity: item.qty, price: item.price, total: item.qty * item.price, profit: (item.price - item.buy_price) * item.qty, cashier_id: currentUser ? currentUser.id : null, invoice_name: invoiceNumber, status: 'suivi' }]);
         }
         alert('✅ تم حفظ الفاتورة بنجاح!');
         currentInvoice = []; document.getElementById('invoice-number').value = '';
@@ -761,6 +800,23 @@ async function importData(event) {
         event.target.value = '';
     };
     reader.readAsText(file);
-}</script>
+}
+// دالة البحث عن المنتج داخل نقطة البيع
+function filterPOSProducts() {
+    const searchTerm = document.getElementById('pos-search-product').value.toLowerCase().trim();
+    const select = document.getElementById('pos-product-select');
+    
+    const filtered = inventoryItems.filter(item => 
+        item.quantity > 0 && item.product_name.toLowerCase().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+        select.innerHTML = '<option value="">لا توجد نتائج مطابقة</option>';
+    } else {
+        select.innerHTML = '<option value="">-- اختر منتجاً --</option>' + 
+            filtered.map(item => `<option value="${item.id}">${item.product_name} (متوفر: ${item.quantity})</option>`).join('');
+    }
+}
+</script>
 </body>
 </html>
