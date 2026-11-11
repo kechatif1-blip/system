@@ -98,26 +98,36 @@ tr:hover td { background: #f0f9ff; }
 
 <div class="app-container" id="app-container">
     <aside class="sidebar">
-        <h2>👑 تاجر عاطف</h2>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">الإجراءات السريعة</div>
-            <button class="nav-btn" onclick="openPOSModal()" style="color: #0ea5e9; font-weight: 900;">🛒 عملية بيع جديدة</button>
-            <button class="nav-btn" onclick="openProductModal()" style="color: #10b981; font-weight: 900;">➕ منتج جديد</button>
-            <button class="nav-btn" onclick="exportData()">📤 تصدير البيانات</button>
-<button class="nav-btn" onclick="triggerImport()">📥 استيراد البيانات</button>
-<input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
-        </div>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">القوائم</div>
-            <button class="nav-btn active" onclick="switchPage('inventory', this)">📦 المخزون</button>
-            <button class="nav-btn" onclick="switchPage('sales', this)">📊 المبيعات والتحليل</button>
-            <button class="nav-btn" onclick="switchPage('expenses', this)">💸 المصاريف</button>
-            <button class="nav-btn" onclick="switchPage('emp_stats', this)">📈 إحصائيات الموظفين</button>
-            <button class="nav-btn" onclick="switchPage('product_stats', this)">📉 تحليل المنتجات</button>
-            <button class="nav-btn" onclick="switchPage('suppliers', this)">🚚 فواتير الموردين</button>
-        </div>
-        <button class="nav-btn logout" onclick="logout()">🚪 خروج</button>
-    </aside>
+    <h2>👑 تاجر عاطف</h2>
+    
+    <!-- 1. الإجراءات السريعة -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">الإجراءات السريعة</div>
+        <button class="nav-btn" onclick="openPOSModal()" style="color: #0ea5e9; font-weight: 900;">🛒 عملية بيع جديدة</button>
+        <button class="nav-btn" onclick="openProductModal()" style="color: #10b981; font-weight: 900;">➕ منتج جديد</button>
+    </div>
+
+    <!-- 2. القوائم -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">القوائم</div>
+        <button class="nav-btn active" onclick="switchPage('inventory', this)">📦 المخزون</button>
+        <button class="nav-btn" onclick="switchPage('sales', this)">📊 المبيعات والتحليل</button>
+        <button class="nav-btn" onclick="switchPage('product_stats', this)">📉 تحليل المنتجات</button>
+        <button class="nav-btn" onclick="switchPage('expenses', this)">💸 المصاريف</button>
+        <button class="nav-btn" onclick="switchPage('emp_stats', this)">📈 إحصائيات الموظفين</button>
+        <button class="nav-btn" onclick="switchPage('suppliers', this)">🚚 فواتير الموردين</button>
+    </div>
+
+    <!-- 3. التصدير والاستيراد (تحت القوائم) -->
+    <div class="sidebar-section">
+        <button class="nav-btn" onclick="exportData()">📤 تصدير البيانات</button>
+        <button class="nav-btn" onclick="triggerImport()">📥 استيراد البيانات</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
+    </div>
+
+    <!-- 4. الخروج -->
+    <button class="nav-btn logout" onclick="logout()">🚪 خروج</button>
+</aside>
 
     <main class="main-content">
         <div class="page-section active" id="page-inventory">
@@ -339,7 +349,7 @@ function switchPage(pageId, btn) {
     document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
     btn.classList.add('active'); document.getElementById('page-' + pageId).classList.add('active');
     if (pageId === 'expenses') loadExpenses();
-    if (pageId === 'sales') loadSales();
+   if (pageId === 'sales') loadSales('all');
     if (pageId === 'emp_stats') loadEmployeeStats();
     if (pageId === 'suppliers') loadSupplierInvoices();
     if (pageId === 'product_stats') loadProductStats();
@@ -512,7 +522,7 @@ function setQuickFilter(filter, btn) {
     loadSales(filter);
 }
 function filterSalesByDate() { document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); loadSales('custom'); }
-async function loadSales(filterType = 'today') {
+async function loadSales(filterType = 'all') {
     const searchTerm = document.getElementById('search-product-input').value.toLowerCase().trim();
     const tbody = document.getElementById('sales-table');
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">جاري التحميل...</td></tr>';
@@ -589,11 +599,28 @@ function printFilteredTable() {
 }
 function openExpenseModal() { document.getElementById('expense-modal').classList.add('active'); }
 async function saveExpense() {
-    const name = document.getElementById('e-name').value; const amount = parseFloat(document.getElementById('e-amount').value);
-    if (!name || isNaN(amount) || amount <= 0) return alert('⚠️ أدخل البيانات');
-    await supabaseClient.from('expenses').insert([{ name, amount }]);
-    alert('✅ تم الحفظ'); closeModal('expense-modal'); loadExpenses(); calculateStats();
-    document.getElementById('e-name').value = ''; document.getElementById('e-amount').value = '';
+    const name = document.getElementById('e-name').value; 
+    const amount = parseFloat(document.getElementById('e-amount').value);
+    
+    if (!name || isNaN(amount) || amount <= 0) {
+        return alert('⚠️ أدخل اسم ومبلغ المصروف');
+    }
+
+    const { error } = await supabaseClient.from('expenses').insert([{ name, amount }]);
+    
+    if (error) {
+        alert('❌ خطأ: ' + error.message);
+        return;
+    }
+
+    alert('✅ تم تسجيل المصروف');
+    document.getElementById('e-name').value = ''; 
+    document.getElementById('e-amount').value = '';
+    closeModal('expense-modal');
+    
+    // تحديث الجدول وحساب صافي الربح فوراً
+    await loadExpenses(); 
+    await calculateStats(); 
 }
 async function loadExpenses() {
     const tbody = document.getElementById('expenses-table');
